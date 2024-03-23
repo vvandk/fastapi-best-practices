@@ -1,38 +1,44 @@
 ## FastAPI 最佳实践
 
+该文档来源于 [zhanymkanov/fastapi-best-practices (github.com)](https://github.com/zhanymkanov/fastapi-best-practices) 开源项目，这里对作者表示感谢！
+
+
+
+以下为使用 ChatGPT 对原文档进行的英汉译，如有错误请指出！
+
+
+
 我们在创业公司使用的一些具有主观性的最佳实践和约定列表。
 
-在过去的1.5年的生产中，我们做出了一些好的和不好的决策，这些决策极大地影响了我们的开发者体验。其中一些是值得分享的。
+在过去的1.5年的生产中，我们做出了一些好的和不好的决策，这些决策极大地影响了我们的开发者体验，其中一些是值得分享的。
 
 ### 目录
 
-1. [项目结构，一致且可预测](https://github.com/vvandk/fastapi-best-practices?tab=readme-ov-file#1-%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84%E4%B8%80%E8%87%B4%E4%B8%94%E5%8F%AF%E9%A2%84%E6%B5%8B)
-2. [大量使用 Pydantic 进行数据验证。](https://github.com/zhanymkanov/fastapi-best-practices#2-excessively-use-pydantic-for-data-validation)
-3. [使用依赖项进行数据验证而不是数据库。](https://github.com/zhanymkanov/fastapi-best-practices#3-use-dependencies-for-data-validation-vs-db)
-4. [链式依赖项](https://github.com/zhanymkanov/fastapi-best-practices#4-chain-dependencies)
-5. [解耦和重用依赖项。依赖调用被缓存。](https://github.com/zhanymkanov/fastapi-best-practices#5-decouple--reuse-dependencies-dependency-calls-are-cached)
-6. [遵循 REST](https://github.com/zhanymkanov/fastapi-best-practices#6-follow-the-rest)
-7. [如果您只有阻塞式 I/O 操作，请不要使您的路由异步。](https://github.com/zhanymkanov/fastapi-best-practices#7-dont-make-your-routes-async-if-you-have-only-blocking-io-operations)
-8. [从第0天开始定制基础模型。](https://github.com/zhanymkanov/fastapi-best-practices#8-custom-base-model-from-day-0)
-9. [文档](https://github.com/zhanymkanov/fastapi-best-practices#9-docs)
-10. [使用 Pydantic 的 BaseSettings 进行配置。](https://github.com/zhanymkanov/fastapi-best-practices#10-use-pydantics-basesettings-for-configs)
-11. [SQLAlchemy：设置数据库键命名约定。](https://github.com/zhanymkanov/fastapi-best-practices#11-sqlalchemy-set-db-keys-naming-convention)
-12. [迁移，Alembic](https://github.com/zhanymkanov/fastapi-best-practices#12-migrations-alembic)
-13. [设置数据库命名约定](https://github.com/zhanymkanov/fastapi-best-practices#13-set-db-naming-convention)
-14. [从第0天开始设置异步测试客户端。](https://github.com/zhanymkanov/fastapi-best-practices#14-set-tests-client-async-from-day-0)
-15. [BackgroundTasks > asyncio.create_task。](https://github.com/zhanymkanov/fastapi-best-practices#15-backgroundtasks--asynciocreate_task)
-16. [类型标注很重要](https://github.com/zhanymkanov/fastapi-best-practices#16-typing-is-important)
-17. [分块保存文件](https://github.com/zhanymkanov/fastapi-best-practices#17-save-files-in-chunks)
-18. [小心动态 Pydantic 字段](https://github.com/zhanymkanov/fastapi-best-practices#18-be-careful-with-dynamic-pydantic-fields)
-19. [SQL 优先，Pydantic 次之](https://github.com/zhanymkanov/fastapi-best-practices#19-sql-first-pydantic-second)
-20. [如果用户可以发送公开可用的 URL，验证主机](https://github.com/zhanymkanov/fastapi-best-practices#20-validate-hosts-if-users-can-send-publicly-available-urls)
-21. [如果 schema 直接面向客户端，在自定义 pydantic 验证器中抛出 ValueError](https://github.com/zhanymkanov/fastapi-best-practices#21-raise-a-valueerror-in-custom-pydantic-validators-if-schema-directly-faces-the-client)
-22. [FastAPI 将 Pydantic 对象转换为 dict，然后转换为 Pydantic 对象，然后转换为 JSON](https://github.com/zhanymkanov/fastapi-best-practices#22-fastapi-converts-pydantic-objects-to-dict-then-to-pydantic-object-then-to-json)
-23. [如果您必须使用同步 SDK，请在线程池中运行它](https://github.com/zhanymkanov/fastapi-best-practices#23-if-you-must-use-sync-sdk-then-run-it-in-a-thread-pool)
-24. [使用 linters (black, ruff)](https://github.com/zhanymkanov/fastapi-best-practices#24-use-linters-black-ruff)
-25. [额外部分](https://github.com/zhanymkanov/fastapi-best-practices#bonus-section)
-
-<p style="text-align: center;"> <i>Project <a href="https://github.com/zhanymkanov/fastapi_production_template">sample</a> built with these best-practices in mind. </i> </p>
+1. [项目结构，一致且可预测](https://github.com/vvandk/fastapi-best-practices#1-%E9%A1%B9%E7%9B%AE%E7%BB%93%E6%9E%84%E4%B8%80%E8%87%B4%E4%B8%94%E5%8F%AF%E9%A2%84%E6%B5%8B)
+2. [大量使用 Pydantic 进行数据验证](https://github.com/vvandk/fastapi-best-practices#2-%E5%A4%A7%E9%87%8F%E4%BD%BF%E7%94%A8-pydantic-%E8%BF%9B%E8%A1%8C%E6%95%B0%E6%8D%AE%E9%AA%8C%E8%AF%81)
+3. [使用依赖项进行数据验证而不是数据库](https://github.com/vvandk/fastapi-best-practices#3-%E4%BD%BF%E7%94%A8%E4%BE%9D%E8%B5%96%E9%A1%B9%E8%BF%9B%E8%A1%8C%E6%95%B0%E6%8D%AE%E9%AA%8C%E8%AF%81-vs-%E6%95%B0%E6%8D%AE%E5%BA%93)
+4. [链式依赖项](https://github.com/vvandk/fastapi-best-practices#4-%E9%93%BE%E5%BC%8F%E4%BE%9D%E8%B5%96%E9%A1%B9)
+5. [解耦和重用依赖项，依赖调用被缓存](https://github.com/vvandk/fastapi-best-practices#5-%E8%A7%A3%E8%80%A6%E5%92%8C%E9%87%8D%E7%94%A8%E4%BE%9D%E8%B5%96%E9%A1%B9%E4%BE%9D%E8%B5%96%E8%B0%83%E7%94%A8%E8%A2%AB%E7%BC%93%E5%AD%98)
+6. [遵循 REST](https://github.com/vvandk/fastapi-best-practices#6-%E9%81%B5%E5%BE%AA-rest)
+7. [如果您只有阻塞式 I/O 操作，请不要使您的路由异步](https://github.com/vvandk/fastapi-best-practices#7-%E5%A6%82%E6%9E%9C%E4%BD%A0%E5%8F%AA%E6%9C%89%E9%98%BB%E5%A1%9E%E5%BC%8F-io-%E6%93%8D%E4%BD%9C%E8%AF%B7%E4%B8%8D%E8%A6%81%E4%BD%BF%E4%BD%A0%E7%9A%84%E8%B7%AF%E7%94%B1%E5%BC%82%E6%AD%A5)
+8. [从第0天开始定制基础模型](https://github.com/vvandk/fastapi-best-practices#8-%E4%BB%8E%E7%AC%AC0%E5%A4%A9%E5%BC%80%E5%A7%8B%E5%AE%9A%E5%88%B6%E5%9F%BA%E7%A1%80%E6%A8%A1%E5%9E%8B)
+9. [文档](https://github.com/vvandk/fastapi-best-practices#9-%E6%96%87%E6%A1%A3)
+10. [使用 Pydantic 的 BaseSettings 进行配置](https://github.com/vvandk/fastapi-best-practices#10-%E4%BD%BF%E7%94%A8-pydantic-%E7%9A%84-basesettings-%E8%BF%9B%E8%A1%8C%E9%85%8D%E7%BD%AE)
+11. [SQLAlchemy：设置数据库键命名约定](https://github.com/vvandk/fastapi-best-practices#11-sqlalchemy-%E8%AE%BE%E7%BD%AE%E6%95%B0%E6%8D%AE%E5%BA%93%E9%94%AE%E5%91%BD%E5%90%8D%E7%BA%A6%E5%AE%9A)
+12. [迁移，Alembic](https://github.com/vvandk/fastapi-best-practices#12-%E8%BF%81%E7%A7%BB-alembic)
+13. [设置数据库命名约定](https://github.com/vvandk/fastapi-best-practices#13-%E8%AE%BE%E7%BD%AE%E6%95%B0%E6%8D%AE%E5%BA%93%E5%91%BD%E5%90%8D%E7%BA%A6%E5%AE%9A)
+14. [从第0天开始设置异步测试客户端](https://github.com/vvandk/fastapi-best-practices#14-%E4%BB%8E%E7%AC%AC0%E5%A4%A9%E5%BC%80%E5%A7%8B%E8%AE%BE%E7%BD%AE%E5%BC%82%E6%AD%A5%E6%B5%8B%E8%AF%95%E5%AE%A2%E6%88%B7%E7%AB%AF)
+15. [BackgroundTasks > asyncio.create_task](https://github.com/vvandk/fastapi-best-practices#15-backgroundtasks--asynciocreate_task)
+16. [类型标注很重要](https://github.com/vvandk/fastapi-best-practices#16-%E7%B1%BB%E5%9E%8B%E6%A0%87%E6%B3%A8%E5%BE%88%E9%87%8D%E8%A6%81)
+17. [分块保存文件](https://github.com/vvandk/fastapi-best-practices#17-%E5%88%86%E5%9D%97%E4%BF%9D%E5%AD%98%E6%96%87%E4%BB%B6)
+18. [小心动态 Pydantic 字段](https://github.com/vvandk/fastapi-best-practices#18-%E5%B0%8F%E5%BF%83%E5%8A%A8%E6%80%81-pydantic-%E5%AD%97%E6%AE%B5pydantic-v1)
+19. [SQL 优先，Pydantic 次之](https://github.com/vvandk/fastapi-best-practices#19-sql-first-pydantic-second)
+20. [如果用户可以发送公开可用的 URL，验证主机](https://github.com/vvandk/fastapi-best-practices#20-%E5%A6%82%E6%9E%9C%E7%94%A8%E6%88%B7%E5%8F%AF%E4%BB%A5%E5%8F%91%E9%80%81%E5%85%AC%E5%BC%80%E5%8F%AF%E7%94%A8%E7%9A%84-url%E8%AF%B7%E9%AA%8C%E8%AF%81%E4%B8%BB%E6%9C%BA)
+21. [如果 schema 直接面向客户端，在自定义 pydantic 验证器中抛出 ValueError](https://github.com/vvandk/fastapi-best-practices#21-%E5%9C%A8%E8%87%AA%E5%AE%9A%E4%B9%89-pydantic-%E9%AA%8C%E8%AF%81%E5%99%A8%E4%B8%AD%E6%8A%9B%E5%87%BA-valueerror%E5%A6%82%E6%9E%9C-schema-%E7%9B%B4%E6%8E%A5%E9%9D%A2%E5%90%91%E5%AE%A2%E6%88%B7%E7%AB%AF)
+22. [FastAPI 将 Pydantic 对象转换为 dict，然后转换为 Pydantic 对象，然后转换为 JSON](https://github.com/vvandk/fastapi-best-practices#22-fastapi-%E5%B0%86-pydantic-%E5%AF%B9%E8%B1%A1%E8%BD%AC%E6%8D%A2%E4%B8%BA-dict%E5%86%8D%E8%BD%AC%E6%8D%A2%E4%B8%BA-pydantic-%E5%AF%B9%E8%B1%A1%E7%84%B6%E5%90%8E%E8%BD%AC%E6%8D%A2%E4%B8%BA-json)
+23. [如果您必须使用同步 SDK，请在线程池中运行它](https://github.com/vvandk/fastapi-best-practices#23-%E5%A6%82%E6%9E%9C%E4%BD%A0%E5%BF%85%E9%A1%BB%E4%BD%BF%E7%94%A8%E5%90%8C%E6%AD%A5-sdk%E8%AF%B7%E5%9C%A8%E7%BA%BF%E7%A8%8B%E6%B1%A0%E4%B8%AD%E8%BF%90%E8%A1%8C%E5%AE%83)
+24. [使用 linters (black, ruff)](https://github.com/vvandk/fastapi-best-practices#24-%E4%BD%BF%E7%94%A8-linters-black-ruff)
+25. [额外部分](https://github.com/vvandk/fastapi-best-practices#%E9%A2%9D%E5%A4%96%E9%83%A8%E5%88%86)
 
 ### 1. 项目结构，一致且可预测
 
