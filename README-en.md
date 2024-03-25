@@ -5,8 +5,33 @@ For the last 1.5 years in production,
 we have been making good and bad decisions that impacted our developer experience dramatically.
 Some of them are worth sharing. 
 
-### Contents
-[TOC]
+- [FastAPI Best Practices](#fastapi-best-practices)
+  - [1. Project Structure. Consistent \& predictable](#1-project-structure-consistent--predictable)
+  - [2. Excessively use Pydantic for data validation](#2-excessively-use-pydantic-for-data-validation)
+  - [3. Use dependencies for data validation vs DB](#3-use-dependencies-for-data-validation-vs-db)
+  - [4. Chain dependencies](#4-chain-dependencies)
+  - [5. Decouple \& Reuse dependencies. Dependency calls are cached.](#5-decouple--reuse-dependencies-dependency-calls-are-cached)
+  - [6. Follow the REST](#6-follow-the-rest)
+  - [7. Don't make your routes async, if you have only blocking I/O operations](#7-dont-make-your-routes-async-if-you-have-only-blocking-io-operations)
+  - [8. Custom base model from day 0.](#8-custom-base-model-from-day-0)
+  - [9. Docs](#9-docs)
+  - [10. Use Pydantic's BaseSettings for configs](#10-use-pydantics-basesettings-for-configs)
+  - [11. SQLAlchemy: Set DB keys naming convention](#11-sqlalchemy-set-db-keys-naming-convention)
+  - [12. Migrations. Alembic.](#12-migrations-alembic)
+  - [13. Set DB naming convention](#13-set-db-naming-convention)
+  - [14. Set tests client async from day 0](#14-set-tests-client-async-from-day-0)
+  - [15. BackgroundTasks \> asyncio.create\_task](#15-backgroundtasks--asynciocreate_task)
+  - [16. Typing is important](#16-typing-is-important)
+  - [17. Save files in chunks.](#17-save-files-in-chunks)
+  - [18. Be careful with dynamic pydantic fields (Pydantic v1)](#18-be-careful-with-dynamic-pydantic-fields-pydantic-v1)
+  - [19. SQL-first, Pydantic-second](#19-sql-first-pydantic-second)
+  - [20. Validate hosts, if users can send publicly available URLs](#20-validate-hosts-if-users-can-send-publicly-available-urls)
+  - [21. Raise a ValueError in custom pydantic validators, if schema directly faces the client](#21-raise-a-valueerror-in-custom-pydantic-validators-if-schema-directly-faces-the-client)
+  - [22. FastAPI converts Pydantic objects to dict, then to Pydantic object, then to JSON](#22-fastapi-converts-pydantic-objects-to-dict-then-to-pydantic-object-then-to-json)
+  - [23. If you must use sync SDK, then run it in a thread pool.](#23-if-you-must-use-sync-sdk-then-run-it-in-a-thread-pool)
+  - [24. Use linters (black, ruff)](#24-use-linters-black-ruff)
+  - [Bonus Section](#bonus-section)
+
 
 <p style="text-align: center;"> <i>Project <a href="https://github.com/zhanymkanov/fastapi_production_template">sample</a> built with these best-practices in mind. </i> </p>
 

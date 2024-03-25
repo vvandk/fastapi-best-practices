@@ -2,21 +2,39 @@
 
 该文档来源于 [zhanymkanov/fastapi-best-practices (github.com)](https://github.com/zhanymkanov/fastapi-best-practices) 开源项目，这里对作者表示感谢！
 
-
-
 以下为使用 ChatGPT 对原文档进行的英汉译，如有错误请指出！
-
-
 
 我们在创业公司使用的一些具有主观性的最佳实践和约定列表。
 
-在过去的1.5年的生产中，我们做出了一些好的和不好的决策，这些决策极大地影响了我们的开发者体验，其中一些是值得分享的。
+- [FastAPI 最佳实践](#fastapi-最佳实践)
+  - [1. 项目结构，一致且可预测](#1-项目结构一致且可预测)
+  - [2. 大量使用 Pydantic 进行数据验证](#2-大量使用-pydantic-进行数据验证)
+  - [3. 使用依赖项进行数据验证 vs 数据库](#3-使用依赖项进行数据验证-vs-数据库)
+  - [4. 链式依赖项](#4-链式依赖项)
+  - [5. 解耦和重用依赖项，依赖调用被缓存](#5-解耦和重用依赖项依赖调用被缓存)
+  - [6. 遵循 REST](#6-遵循-rest)
+  - [7. 如果你只有阻塞式 I/O 操作，请不要使你的路由异步](#7-如果你只有阻塞式-io-操作请不要使你的路由异步)
+  - [8. 从第 0 天开始定制基础模型](#8-从第-0-天开始定制基础模型)
+  - [9. 文档](#9-文档)
+  - [10. 使用 Pydantic 的 BaseSettings 进行配置](#10-使用-pydantic-的-basesettings-进行配置)
+  - [11. SQLAlchemy: 设置数据库键命名约定](#11-sqlalchemy-设置数据库键命名约定)
+  - [12. 迁移 Alembic](#12-迁移-alembic)
+  - [13. 设置数据库命名约定](#13-设置数据库命名约定)
+  - [14. 从第 0 天开始设置异步测试客户端](#14-从第-0-天开始设置异步测试客户端)
+  - [15. BackgroundTasks \> asyncio.create\_task](#15-backgroundtasks--asynciocreate_task)
+  - [16. 类型标注很重要](#16-类型标注很重要)
+  - [17. 分块保存文件](#17-分块保存文件)
+  - [18. 小心动态 Pydantic 字段（Pydantic v1）](#18-小心动态-pydantic-字段pydantic-v1)
+  - [19. SQL-first, Pydantic-second](#19-sql-first-pydantic-second)
+  - [20. 如果用户可以发送公开可用的 URL，请验证主机](#20-如果用户可以发送公开可用的-url请验证主机)
+  - [21. 在自定义 pydantic 验证器中抛出 ValueError，如果 schema 直接面向客户端](#21-在自定义-pydantic-验证器中抛出-valueerror如果-schema-直接面向客户端)
+  - [22. FastAPI 将 Pydantic 对象转换为 dict，再转换为 Pydantic 对象，然后转换为 JSON](#22-fastapi-将-pydantic-对象转换为-dict再转换为-pydantic-对象然后转换为-json)
+  - [23. 如果你必须使用同步 SDK，请在线程池中运行它](#23-如果你必须使用同步-sdk请在线程池中运行它)
+  - [24. 使用 linters (black, ruff)](#24-使用-linters-black-ruff)
+  - [额外部分](#额外部分)
 
+在过去的 1.5 年的生产中，我们做出了一些好的和不好的决策，这些决策极大地影响了我们的开发者体验，其中一些是值得分享的。
 
-
-**目录**
-
-[TOC]
 
 ### 1. 项目结构，一致且可预测
 
@@ -80,6 +98,7 @@ fastapi-project
 ├── logging.ini
 └── alembic.ini
 ```
+
 1. 将所有域目录存储在 src 文件夹内
    1. `src/` - 应用的最高级别，包含通用模型、配置和常量等。
    2. `src/main.py` - 项目的根，初始化 FastAPI 应用
@@ -94,6 +113,7 @@ fastapi-project
    8. `utils.py` - 非业务逻辑函数，例如响应规范化、数据丰富等。
    9. `exceptions.py` - 模块特定的异常，例如 `PostNotFound`, `InvalidUserData`
 3. 当包需要来自其他包的服务或依赖项或常量时 - 使用明确的模块名导入它们
+
 ```python
 from src.auth import constants as auth_constants
 from src.notifications import service as notification_service
@@ -101,6 +121,7 @@ from src.posts.constants import ErrorCode as PostsErrorCode  # in case we have S
 ```
 
 ### 2. 大量使用 Pydantic 进行数据验证
+
 Pydantic 拥有丰富的功能集，用于验证和转换数据。
 
 除了常规功能，如必填与非必填字段、默认值外，Pydantic 还内置了全面的数据处理工具，如正则表达式、枚举限制选项、长度验证、电子邮件验证等。
@@ -124,7 +145,9 @@ class UserBase(BaseModel):
     website: AnyUrl = None
 
 ```
+
 ### 3. 使用依赖项进行数据验证 vs 数据库
+
 Pydantic 只能验证来自客户端输入的值。
 
 使用依赖项来验证数据是否符合数据库约束，如电子邮件已存在、用户未找到等。
@@ -147,8 +170,8 @@ async def get_post_by_id(post: Mapping = Depends(valid_post_id)):
 
 @router.put("/posts/{post_id}", response_model=PostResponse)
 async def update_post(
-    update_data: PostUpdate,  
-    post: Mapping = Depends(valid_post_id), 
+    update_data: PostUpdate,
+    post: Mapping = Depends(valid_post_id),
 ):
     updated_post: Mapping = await service.update(id=post["id"], data=update_data)
     return updated_post
@@ -159,10 +182,13 @@ async def get_post_reviews(post: Mapping = Depends(valid_post_id)):
     post_reviews: list[Mapping] = await reviews_service.get_by_post_id(post["id"])
     return post_reviews
 ```
+
 如果我们没有将数据验证放入依赖项中，我们将不得不为每个端点添加 post_id 验证，并为它们编写相同的测试。
 
 ### 4. 链式依赖项
+
 依赖项可以使用其他依赖项，避免对类似逻辑的代码重复。
+
 ```python3
 # dependencies.py
 from fastapi.security import OAuth2PasswordBearer
@@ -188,7 +214,7 @@ async def parse_jwt_data(
 
 
 async def valid_owned_post(
-    post: Mapping = Depends(valid_post_id), 
+    post: Mapping = Depends(valid_post_id),
     token_data: dict = Depends(parse_jwt_data),
 ) -> Mapping:
     if post["creator_id"] != token_data["user_id"]:
@@ -202,7 +228,9 @@ async def get_user_post(post: Mapping = Depends(valid_owned_post)):
     return post
 
 ```
+
 ### 5. 解耦和重用依赖项，依赖调用被缓存
+
 依赖项可以被多次重用，它们不会被重新计算 - FastAPI 默认在请求的范围内缓存依赖项的结果，即如果我们有一个调用服务 `get_post_by_id` 的依赖项，我们不会每次调用这个依赖项时都访问数据库 - 只有第一次函数调用。
 
 知道这一点，我们可以轻松地将依赖项解耦为多个较小的函数，这些函数在更小的领域上操作，并且在其他路由中更容易重用。例如，在下面的代码中，我们使用了 `parse_jwt_data` 三次：
@@ -239,7 +267,7 @@ async def parse_jwt_data(
 
 
 async def valid_owned_post(
-    post: Mapping = Depends(valid_post_id), 
+    post: Mapping = Depends(valid_post_id),
     token_data: dict = Depends(parse_jwt_data),
 ) -> Mapping:
     if post["creator_id"] != token_data["user_id"]:
@@ -254,12 +282,12 @@ async def valid_active_creator(
     user = await users_service.get_by_id(token_data["user_id"])
     if not user["is_active"]:
         raise UserIsBanned()
-    
+
     if not user["is_creator"]:
        raise UserNotCreator()
-    
+
     return user
-        
+
 
 # router.py
 @router.get("/users/{user_id}/posts/{post_id}", response_model=PostResponse)
@@ -275,13 +303,17 @@ async def get_user_post(
 ```
 
 ### 6. 遵循 REST
+
 开发符合 RESTful API 标准的 API 使得在类似这样的路由中重用依赖项变得更加容易：
-   1. `GET /courses/:course_id`
-   2. `GET /courses/:course_id/chapters/:chapter_id/lessons`
-   3. `GET /chapters/:chapter_id`
+
+1.  `GET /courses/:course_id`
+2.  `GET /courses/:course_id/chapters/:chapter_id/lessons`
+3.  `GET /chapters/:chapter_id`
 
 唯一的注意点是在路径中使用相同的变量名：
+
 - 如果你有两个端点 `GET /profiles/:profile_id` 和 `GET /creators/:creator_id` 都验证给定的 `profile_id` 是否存在，但 `GET /creators/:creator_id` 还检查了 profile 是否为 creator，那么最好将 `creator_id` 路径变量重命名为 `profile_id` 并链式这两个依赖项。
+
 ```python3
 # src.profiles.dependencies
 async def valid_profile_id(profile_id: UUID4) -> Mapping:
@@ -320,6 +352,7 @@ async def get_user_profile_by_id(
 2. 不需要检查用户 id 是否属于请求者
 
 ### 7. 如果你只有阻塞式 I/O 操作，请不要使你的路由异步
+
 FastAPI 能够[有效处理](https://fastapi.tiangolo.com/async/#path-operation-functions)异步和同步 I/O 操作。
 
 - FastAPI 在 [线程池](https://en.wikipedia.org/wiki/Thread_pool) 中运行 `sync` 路由，阻塞式 I/O 操作不会阻止 [事件循环](https://docs.python.org/3/library/asyncio-eventloop.html) 执行任务。
@@ -335,14 +368,14 @@ import time
 async def terrible_catastrophic_ping():
     time.sleep(10) # I/O blocking operation for 10 seconds
     pong = service.get_pong()  # I/O blocking operation to get pong from DB
-    
+
     return {"pong": pong}
 
 @router.get("/good-ping")
 def good_ping():
     time.sleep(10) # I/O blocking operation for 10 seconds, but in another thread
     pong = service.get_pong()  # I/O blocking operation to get pong from DB, but in another thread
-    
+
     return {"pong": pong}
 
 @router.get("/perfect-ping")
@@ -353,6 +386,7 @@ async def perfect_ping():
     return {"pong": pong}
 
 ```
+
 **当我们调用时发生的情况：**
 
 1. `GET /terrible-ping`
@@ -381,6 +415,7 @@ async def perfect_ping():
    6. 当 `service.async_get_pong` 完成时，服务器返回响应给客户端。
 
 第二个注意点是，那些非阻塞的 awaitable 操作或发送到线程池的操作必须是 I/O 密集型任务（例如，打开文件、数据库调用、外部 API 调用）。
+
 - 等待 CPU 密集型任务（例如，大量计算、数据处理、视频转码）是没有意义的，因为 CPU 必须工作以完成任务，而 I/O 操作是外部的，服务器在等待这些操作完成时无事可做，因此可以处理下一个任务。
 - 在其他线程中运行 CPU 密集型任务也不是有效的，因为 [GIL（全局解释器锁）](https://realpython.com/python-gil/)。简而言之，GIL 只允许一次一个线程工作，这使得它对 CPU 任务来说是无用的。
 - 如果你想优化 CPU 密集型任务，你应该将它们发送到另一个进程中的工作器。
@@ -392,7 +427,8 @@ async def perfect_ping():
 2. https://stackoverflow.com/questions/65342833/fastapi-uploadfile-is-slow-compared-to-flask
 3. https://stackoverflow.com/questions/71516140/fastapi-runs-api-calls-in-serial-instead-of-parallel-fashion
 
-### 8. 从第0天开始定制基础模型
+### 8. 从第 0 天开始定制基础模型
+
 拥有一个可控的全局基础模型允许我们自定义应用中的所有模型。
 
 例如，我们可以有一个标准的 datetime 格式或为基础模型的所有子类添加超级方法。
@@ -437,11 +473,15 @@ class CustomModel(BaseModel):
         return jsonable_encoder(default_dict)
 
 ```
+
 - 在上面的示例中，我们决定创建一个全局基础模型：
   - 将所有日期格式中的微秒数设为 0
   - 将所有 datetime 字段序列化为带有明确时区的标准格式
+
 ### 9. 文档
+
 1. 除非你的 API 是公开的，默认情况下隐藏文档。仅在选定的环境中显式显示。
+
 ```python
 from fastapi import FastAPI
 from starlette.config import Config
@@ -457,9 +497,11 @@ if ENVIRONMENT not in SHOW_DOCS_ENVIRONMENT:
 
 app = FastAPI(**app_configs)
 ```
+
 2. 帮助 FastAPI 生成易于理解的文档
    1. 设置 `response_model`, `status_code`, `description` 等
    2. 如果模型和状态不同，使用路由的 `responses` 属性添加不同响应的文档
+
 ```python
 from fastapi import APIRouter, status
 
@@ -467,7 +509,7 @@ router = APIRouter()
 
 @router.post(
     "/endpoints",
-    response_model=DefaultResponseModel,  # default response pydantic model 
+    response_model=DefaultResponseModel,  # default response pydantic model
     status_code=status.HTTP_201_CREATED,  # default status code
     description="Description of the well documented endpoint",
     tags=["Endpoint Category"],
@@ -490,12 +532,15 @@ router = APIRouter()
 async def documented_route():
     pass
 ```
+
 将会生成如此文档：
 
 ![FastAPI Generated Custom Response Docs](images/custom_responses.png "Custom Response Docs")
 
 ### 10. 使用 Pydantic 的 BaseSettings 进行配置
+
 Pydantic 提供了一个[强大的工具](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)来解析环境变量，并使用其验证器处理它们。
+
 ```python
 from pydantic import AnyUrl, PostgresDsn
 from pydantic_settings import BaseSettings  # pydantic v2
@@ -510,8 +555,11 @@ class AppSettings(BaseSettings):
     IS_GOOD_ENV: bool = True
     ALLOWED_CORS_ORIGINS: set[AnyUrl]
 ```
+
 ### 11. SQLAlchemy: 设置数据库键命名约定
+
 根据你的数据库的约定明确设置索引的命名比让 sqlalchemy 默认的命名更可取。
+
 ```python
 from sqlalchemy import MetaData
 
@@ -524,20 +572,26 @@ POSTGRES_INDEXES_NAMING_CONVENTION = {
 }
 metadata = MetaData(naming_convention=POSTGRES_INDEXES_NAMING_CONVENTION)
 ```
-### 12. 迁移 Alembic
-1. 迁移必须是静态的并且可逆的。 
 
-  如果你的迁移依赖于动态生成的数据，请确保唯一动态的是数据本身，而不是其结构。
+### 12. 迁移 Alembic
+
+1. 迁移必须是静态的并且可逆的。
+
+如果你的迁移依赖于动态生成的数据，请确保唯一动态的是数据本身，而不是其结构。
 
 2. 以描述性的名称和 slugs 生成迁移。Slug 是必需的，应该解释更改。
 
 3. 为新迁移设置人类可读的文件模板。我们使用 `*date*_*slug*.py` 模式，例如 `2022-08-24_post_content_idx.py`
+
 ```
 # alembic.ini
 file_template = %%(year)d-%%(month).2d-%%(day).2d_%%(slug)s
 ```
+
 ### 13. 设置数据库命名约定
+
 保持命名的一致性很重要。我们遵循的一些规则：
+
 1. lower_case_snake
 2. 单数形式（例如，`post`, `post_like`, `user_playlist`）
 3. 通过模块前缀对相似表进行分组，例如 `payment_account`, `payment_bill`, `post`, `post_like`
@@ -547,8 +601,10 @@ file_template = %%(year)d-%%(month).2d-%%(day).2d_%%(slug)s
 5. 对于 datetime 使用 `_at` 后缀
 6. 对于 date 使用 `_date` 后缀
 
-### 14. 从第0天开始设置异步测试客户端
+### 14. 从第 0 天开始设置异步测试客户端
+
 编写与数据库集成的集成测试最终可能会导致混乱的事件循环错误。 立即设置异步测试客户端，例如 [async_asgi_testclient](https://github.com/vinissimus/async-asgi-testclient) 或 [httpx](https://github.com/encode/starlette/issues/652)
+
 ```python
 import pytest
 from async_asgi_testclient import TestClient
@@ -573,11 +629,16 @@ async def test_create_post(client: TestClient):
 
     assert resp.status_code == 201
 ```
+
 除非你有同步数据库连接（真的吗？）或不打算编写集成测试。
+
 ### 15. BackgroundTasks > asyncio.create_task
+
 BackgroundTasks 能够[有效运行](https://github.com/encode/starlette/blob/31164e346b9bd1ce17d968e1301c3bb2c23bb418/starlette/background.py#L25)阻塞和非阻塞 I/O 操作，就像 FastAPI 处理阻塞路由一样（`sync` 任务在线程池中运行，而 `async` 任务稍后被 await）。
+
 - 不要向工作器撒谎，不要将阻塞 I/O 操作标记为 `async`
 - 不要将其用于重 CPU 密集型任务。
+
 ```python
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import UUID4
@@ -594,7 +655,9 @@ async def send_user_email(worker: BackgroundTasks, user_id: UUID4):
     worker.add_task(notifications_service.send_email, user_id)  # send email after responding client
     return {"status": "ok"}
 ```
+
 ### 16. 类型标注很重要
+
 FastAPI、Pydantic 和现代 IDE 鼓励使用类型提示。
 
 **没有类型提示**
@@ -606,7 +669,9 @@ FastAPI、Pydantic 和现代 IDE 鼓励使用类型提示。
 <img src="images/type_hints.png" width="400" height="auto">
 
 ### 17. 分块保存文件
+
 不要指望你的客户端只发送小文件。
+
 ```python
 import aiofiles
 from fastapi import UploadFile
@@ -618,8 +683,11 @@ async def save_video(video_file: UploadFile):
      while chunk := await video_file.read(DEFAULT_CHUNK_SIZE):
          await f.write(chunk)
 ```
+
 ### 18. 小心动态 Pydantic 字段（Pydantic v1）
+
 如果你有一个可以接受多种类型的 Pydantic 字段，请确保验证器明确知道这些类型之间的区别。
+
 ```python
 from pydantic import BaseModel
 
@@ -634,47 +702,51 @@ class Video(BaseModel):
    text: str | None
    extra: str | None
 
-   
+
 class Post(BaseModel):
    content: Article | Video
 
-   
+
 post = Post(content={"video_id": 1, "text": "text"})
 print(type(post.content))
 # 输出: Article
 # Article 非常包容且所有字段都是可选的，允许任何 dict 成为有效
 ```
+
 **解决方案：**
 
 1. 验证输入仅包含允许的有效字段，如果提供了未知字段则抛出错误
+
 ```python
 from pydantic import BaseModel, Extra
 
 class Article(BaseModel):
    text: str | None
    extra: str | None
-   
+
    class Config:
         extra = Extra.forbid
-       
+
 
 class Video(BaseModel):
    video_id: int
    text: str | None
    extra: str | None
-   
+
    class Config:
         extra = Extra.forbid
 
-   
+
 class Post(BaseModel):
    content: Article | Video
 ```
+
 2. 如果字段简单，则使用 Pydantic 的 Smart Union (>v1.9, <2.0)
 
 这是一个好的解决方案，如果字段简单如 `int` 或 `bool`，但它不适用于复杂字段如类。
 
 没有 Smart Union
+
 ```python
 from pydantic import BaseModel
 
@@ -692,7 +764,9 @@ print(type(p.field_2))
 print(type(p.content))
 # OUTPUT: Article
 ```
+
 有 Smart Union
+
 ```python
 class Post(BaseModel):
    field_1: bool | int
@@ -722,9 +796,11 @@ class Post(BaseModel):
 ```
 
 ### 19. SQL-first, Pydantic-second
+
 - 通常情况下，数据库处理数据处理任务比 CPython 要快得多、更干净。
 - 推荐使用 SQL 来完成所有复杂的联接和简单的数据操作。
 - 推荐在数据库中聚合 JSON，以用于包含嵌套对象的响应。
+
 ```python
 # src.posts.service
 from typing import Mapping
@@ -737,7 +813,7 @@ from src.database import database, posts, profiles, post_review, products
 
 async def get_posts(
     creator_id: UUID4, *, limit: int = 10, offset: int = 0
-) -> list[Mapping]: 
+) -> list[Mapping]:
     select_query = (
         select(
             (
@@ -772,7 +848,7 @@ async def get_posts(
             desc(coalesce(posts.c.updated_at, posts.c.published_at, posts.c.created_at))
         )
     )
-    
+
     return await database.fetch_all(select_query)
 
 # src.posts.schemas
@@ -786,7 +862,7 @@ class PostType(str, Enum):
     ARTICLE = "ARTICLE"
     COURSE = "COURSE"
 
-   
+
 class Creator(BaseModel):
     id: UUID4
     first_name: str
@@ -807,7 +883,7 @@ class Post(BaseModel):
           return orjson.loads(creator)
 
        return creator
-    
+
 # src.posts.router
 from fastapi import APIRouter, Depends
 
@@ -822,6 +898,7 @@ async def get_creator_posts(creator: Mapping = Depends(valid_creator_id)):
 ```
 
 如果数据库中聚合的数据是简单的 JSON，则可以查看 Pydantic 的 `Json` 字段类型，它将首先加载原始 JSON。
+
 ```python
 from pydantic import BaseModel, Json
 
@@ -834,6 +911,7 @@ invalid_a = A(numbers='["a", "b", "c"]', dicts='{"key": "str instead of int"}') 
 ```
 
 ### 20. 如果用户可以发送公开可用的 URL，请验证主机
+
 例如，我们有一个特定的端点：
 
 1. 接受用户的媒体文件，
@@ -867,20 +945,23 @@ class Profile(BaseModel):
     avatar_url: CompanyMediaUrl  # only whitelisted urls for avatar
 
 ```
+
 ### 21. 在自定义 pydantic 验证器中抛出 ValueError，如果 schema 直接面向客户端
+
 这将返回给用户一个详细的响应。
+
 ```python
 # src.profiles.schemas
 from pydantic import BaseModel, validator
 
 class ProfileCreate(BaseModel):
     username: str
-    
+
     @validator("username")  # pydantic v1
     def validate_bad_words(cls, username: str):
         if username  == "me":
             raise ValueError("bad username, choose another")
-        
+
         return username
 
 
@@ -894,14 +975,17 @@ router = APIRouter()
 async def get_creator_posts(profile_data: ProfileCreate):
    pass
 ```
+
 **响应示例：**
 
 <img src="images/custom_bad_response.png" width="400" height="auto">
 
 ### 22. FastAPI 将 Pydantic 对象转换为 dict，再转换为 Pydantic 对象，然后转换为 JSON
+
 如果你认为可以返回与你的路由的 `response_model` 匹配的 Pydantic 对象来进行某些优化，那么这是错误的。
 
 FastAPI 首先将那个 pydantic 对象使用其 `jsonable_encoder` 转换为 dict，然后使用你的 `response_model` 验证数据，最后才将你的对象序列化为 JSON。
+
 ```python
 from fastapi import FastAPI
 from pydantic import BaseModel, root_validator
@@ -925,6 +1009,7 @@ class ProfileResponse(BaseModel):
 async def root():
     return ProfileResponse()
 ```
+
 **日志输出:**
 
 ```
@@ -933,7 +1018,9 @@ async def root():
 [INFO] [2022-08-28 12:00:00.000020] created pydantic model
 [INFO] [2022-08-28 12:00:00.000030] called dict
 ```
+
 ### 23. 如果你必须使用同步 SDK，请在线程池中运行它
+
 如果你必须使用一个库来与外部服务交互，并且它不是 `async` 的，那么请在外部工作线程中进行 HTTP 调用。
 
 对于一个简单的例子，我们可以使用我们熟知的 `run_in_threadpool` 来自 starlette。
@@ -941,7 +1028,7 @@ async def root():
 ```python
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
-from my_sync_library import SyncAPIClient 
+from my_sync_library import SyncAPIClient
 
 app = FastAPI()
 
@@ -953,7 +1040,9 @@ async def call_my_sync_library():
     client = SyncAPIClient()
     await run_in_threadpool(client.make_request, data=my_data)
 ```
+
 ### 24. 使用 linters (black, ruff)
+
 有了 linters，你可以忘记格式化代码，专注于编写业务逻辑。
 
 Black 是一种不妥协的代码格式化器，它消除了开发过程中你必须做出的许多小决策。 Ruff 是一个“极速”的新 linter，取代了 autoflake 和 isort，并支持超过 600 条 lint 规则。
@@ -967,6 +1056,7 @@ set -x
 ruff --fix
 black src tests
 ```
+
 ### 额外部分
 
 一些非常好心的人分享了他们自己的经验和最佳实践，这绝对值得一读。在项目的 [issues](https://github.com/zhanymkanov/fastapi-best-practices/issues) 部分查看他们。
